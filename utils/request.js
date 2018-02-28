@@ -1,0 +1,106 @@
+import qs from 'qs';
+import axios from 'axios';
+import store from '@/store';
+import { getToken } from '@/utils/auth';
+// import vux from "../store/modules/vux";
+
+// 创建axios实例
+const service = axios.create({
+  baseURL: process.env.BASE_API, // api的base_url
+  timeout: 5000, // 请求超时时间,
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+    // 'Access-Control-Allow-Origin': '*'
+  }
+});
+// request拦截器
+service.interceptors.request.use(
+  config => {
+    const { shop_id = 1, shop_user_id = 13 } = store.getters.userInfo.user;
+    // console.log(store.getters, 123123);
+    config.credentials = true;
+    if (!config.data) {
+      config.data = {};
+    }
+    if (shop_id && shop_user_id) {
+      config.data.shop_id = shop_id;
+      config.data.shop_user_id = shop_user_id;
+    }
+    config.data = qs.stringify(config.data);
+    // Do something before request is sent
+    if (store.getters.token) {
+      config.headers['token'] = getToken(); // 让每个请求携带token--['X-Token']为自定义key 请根据实际情况自行修改
+      config.headers['都带shop_id'] = getToken(); // 店铺ID的初始值由拉取用户信息的时候拉取
+    }
+    // store.commit("updateLoadingStatus", { isLoading: true });
+    return config;
+  },
+  error => {
+    // Do something with request error
+    console.log(error); // for debug
+    Promise.reject(error);
+  }
+);
+
+// respone拦截器
+service.interceptors.response.use(
+  response => {
+    // console.log(response.request.responseURL, "接口返回数据", response.data);
+
+    // store.commit("updateLoadingStatus", { isLoading: false });
+    if (response.data.error === 0) {
+      return response.data.data;
+    } else {
+      // console.log(that, 132131);
+      return response.data;
+    }
+  },
+  /**
+   * 下面的注释为通过response自定义code来标示请求状态，当code返回如下情况为权限有问题，登出并返回到登录页
+   * 如通过xmlhttprequest 状态码标识 逻辑可写在下面error中
+   */
+  //  const res = response.data;
+  //     if (res.code !== 20000) {
+  //       Message({
+  //         message: res.message,
+  //         type: 'error',
+  //         duration: 5 * 1000
+  //       });
+  //       // 50008:非法的token; 50012:其他客户端登录了;  50014:Token 过期了;
+  //       if (res.code === 50008 || res.code === 50012 || res.code === 50014) {
+  //         MessageBox.confirm('你已被登出，可以取消继续留在该页面，或者重新登录', '确定登出', {
+  //           confirmButtonText: '重新登录',
+  //           cancelButtonText: '取消',
+  //           type: 'warning'
+  //         }).then(() => {
+  //           store.dispatch('FedLogOut').then(() => {
+  //             location.reload();// 为了重新实例化vue-router对象 避免bug
+  //           });
+  //         })
+  //       }
+  //       return Promise.reject('error');
+  //     } else {
+  //       return response.data;
+  //     }
+  error => {
+    console.log('err' + error); // for debug
+    // this.$vux.toast.show({
+    //   text: "数据错误",
+    //   position: "warn",
+    //   type: "top"
+    // });
+    // Message({
+    //   message: error.message,
+    //   type: 'error',
+    //   duration: 5 * 1000
+    // });
+    // store.commit("updateLoadingStatus", { isLoading: false });
+    return {
+      error: 1,
+      message: '500'
+    };
+    // return Promise.reject(error);
+  }
+);
+
+export default service;
